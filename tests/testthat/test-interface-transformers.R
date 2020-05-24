@@ -162,9 +162,11 @@ test_that("s2_centroid_agg() works", {
 })
 
 test_that("real data survives the S2BooleanOperation", {
+  timezones <- s2data_timezones()
+
   for (continent in unique(libs2::s2_data_world_borders$continent)) {
     # this is primarily a test of the S2BooleanOperation -> LibS2Geography constructor
-    unioned <- expect_is(s2_union_agg(s2data_countries(continent)), "s2geography")
+    unioned <- s2_union_agg(s2data_countries(continent))
 
     # this is a test of LibS2Geography::Export() on potentially complex polygons
     exported <- expect_length(s2_asbinary(unioned), 1)
@@ -179,5 +181,17 @@ test_that("real data survives the S2BooleanOperation", {
     reloaded <- s2geography(structure(exported, class = "wk_wkb"), oriented = FALSE)
     expect_equal(s2_numpoints(reloaded), s2_numpoints(unioned))
     expect_equal(s2_area(reloaded, radius = 1), s2_area(unioned, radius = 1))
+
+    # intersect with all the timezones to check a bunch more polygons
+    for (i in seq_along(timezones)) {
+      intersected <- s2_intersection(unioned, timezones[i])
+
+      if (!s2_isempty(intersected)) {
+        exported <- expect_length(s2_asbinary(intersected), 1)
+        reloaded <- s2geography(structure(exported, class = "wk_wkb"), oriented = TRUE)
+        expect_equal(s2_numpoints(reloaded), s2_numpoints(intersected))
+        expect_equal(s2_area(reloaded, radius = 1), s2_area(intersected, radius = 1))
+      }
+    }
   }
 })
